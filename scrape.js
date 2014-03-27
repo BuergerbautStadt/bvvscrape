@@ -1,6 +1,15 @@
 // this script requires casparjs >= 1.1
+var casper = require('casper').create({
+  pageSettings: 
+  {
+    loadImages: false,
+    loadPlugins: false
+  }
+});
 
-ba_list = [
+var fs = require('fs');
+
+var ba_list = [
   "ba-charlottenburg-wilmersdorf",
   "ba-friedrichshain-kreuzberg",
   "ba-lichtenberg",
@@ -15,8 +24,7 @@ ba_list = [
   "ba-treptow-koepenick"
 ];
 
-var beschluesse = new Array;
-var current = 5;
+var current = 0;
 
 function buildURL(ba)
 {
@@ -46,46 +54,51 @@ function type(obj){
     return Object.prototype.toString.call(obj).slice(8, -1);
 }
 
-var casper = require('casper').create({
-  pageSettings: 
-  {
-    loadImages: false
-    //loadPlugins: false
-  }
-});
-
-var fs = require('fs');
-var url = buildURL(ba_list[current]);
-
-casper.start().open(url, 
+function get(url)
 {
-  'method': 'post',
-  'data': 
+  var beschluesse = new Array;
+
+  casper.echo(ba_list[current]);
+
+  casper.start().open(url, 
   {
-    VO040FIL1: '',
-    filtvoname: 'filter',
-    VO040FIL2: 'Bebauungsplan',
-    filtvobetr1: 'filter',
-    x: 9,
-    y: 12
-  }
-}).then(function()
-{
-  beschluesse = beschluesse.concat(this.evaluate(getDocs));
-}).run(function() {
-  var out = "";
-
-  for (i = 0; i < beschluesse.length; i++)
+    'method': 'post',
+    'data': 
+    {
+      VO040FIL1: '',
+      filtvoname: 'filter',
+      VO040FIL2: 'Bebauungsplan',
+      filtvobetr1: 'filter',
+      x: 9,
+      y: 12
+    }
+  }).then(function()
   {
-    //dcheck = beschluesse[i].date.split('.');
-    //dcheck = new Date(Date.UTC(parseInt(dcheck[2]), parseInt(dcheck[1]), parseInt(dcheck[0])));
+    beschluesse = this.evaluate(getDocs);
+  }).run(function() {
+    var out = "";
 
-    //console.log(dcheck);
+    for (i = 0; i < beschluesse.length; i++)
+    {
+      //dcheck = beschluesse[i].date.split('.');
+      //dcheck = new Date(Date.UTC(parseInt(dcheck[2]), parseInt(dcheck[1]), parseInt(dcheck[0])));
 
-    out += beschluesse[i].date + ": " + beschluesse[i].link + "\n\n" + beschluesse[i].description + "\n\n---\n\n";
+      //console.log(dcheck);
+
+      out += beschluesse[i].date + ": " + beschluesse[i].link + "\n\n" + beschluesse[i].description + "\n\n---\n\n";
+    }
+
+    fs.write("beschluesse_" + ba_list[current - 1] +".txt", out, 'w');
+  });
+}
+
+get(buildURL(ba_list[current]));
+casper.on('run.complete', function () {
+  if (++current < ba_list.length)
+  {
+    get(buildURL(ba_list[current]));
+  } else
+  {
+    casper.exit();
   }
-
-  fs.write("beschluesse.txt", out, 'w');
-
-  this.exit();
 });

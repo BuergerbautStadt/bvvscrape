@@ -28,7 +28,7 @@ var current = 0;
 
 function buildURL(ba)
 {
-  return "http://www.berlin.de/" + ba + "/bvv-online/vo040.asp"; //"http://www.berlin.de/" + ba + "/bvv-online/vo040.asp";
+  return "http://www.berlin.de/" + ba + "/bvv-online/vo040.asp";
 }
 
 function getDocs()
@@ -88,7 +88,8 @@ function get(url)
       out += beschluesse[i].date + ": " + beschluesse[i].link + "\n\n" + beschluesse[i].description + "\n\n---\n\n";
     }
 
-    fs.write("beschluesse_" + ba_list[current - 1] +".txt", out, 'w');
+    fs.write(ba_list[current - 1].slice(3) +".txt", out, 'w');
+    fs.write(ba_list[current - 1].slice(3) +".json", JSON.stringify(beschluesse), 'w');
   });
 }
 

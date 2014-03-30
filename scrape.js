@@ -1,9 +1,24 @@
-// this script requires casparjs >= 1.1
+/** 
+ * this script requires casparjs >= 1.1 with phantomjs >= 1.8
+ * 
+ * TODOs: 
+ *  - figure out how to get all entries via ?showall=true
+ **/
+
+var XDate = require('xdate');
+
 var casper = require('casper').create({
   pageSettings: 
   {
     loadImages: false,
-    loadPlugins: false
+    loadPlugins: false,
+  },
+  clientScripts: ['xdate.js'],
+  verbose: true,
+  viewportSize: // circumvent being accidentally redirected to mobile sites based on screen real estate
+  {
+    width: 1024,
+    height: 768
   }
 });
 
@@ -26,39 +41,48 @@ var ba_list = [
 
 var current = 0;
 
+function makeReadable(ba)
+{
+  return ba.slice(3).replace(/-/, ' ').split(' ').map(function(e) {
+    return e.charAt(0).toUpperCase() + e.slice(1);
+  }).join(' ');
+}
+
 function buildURL(ba)
 {
   return "http://www.berlin.de/" + ba + "/bvv-online/vo040.asp";
 }
 
-function getDocs()
+function evaluateURL()
 {
   var rows = document.querySelectorAll('#rismain_raw tbody tr');
-  var result = new Array;
+  var result = new Array();
 
   for (i = 0; i < rows.length; i++)
   {
-    var link = rows[i].getElementsByTagName('a');
+    var link     = rows[i].getElementsByTagName('a');
     var date_col = rows[i].getElementsByTagName('td');
     
     date = date_col[4];
-    if (date) date = date.innerText;
+    if (date) 
+    {
+      date = date.innerText;
 
-    result.push({ "link": link[0].href, "description": link[0].innerText, "date": date });
+      xdate = date.split('.');
+      xdate = new XDate(Date.UTC(parseInt(xdate[2]), parseInt(xdate[1]), parseInt(xdate[0])));
+
+      result.push({ "link": link[0].href, "description": link[0].innerText, "date": xdate.toDateString() });
+    }
   }
 
   return result;
 }
 
-function type(obj){
-    return Object.prototype.toString.call(obj).slice(8, -1);
-}
-
 function get(url)
 {
-  var beschluesse = new Array;
+  var resolutions;
 
-  casper.echo(ba_list[current]);
+  casper.echo("Processing '" + makeReadable(ba_list[current]) + "'");
 
   casper.start().open(url, 
   {
@@ -72,24 +96,30 @@ function get(url)
       x: 9,
       y: 12
     }
-  }).then(function()
+  });
+
+  casper.thenBypassUnless(function() {
+    return this.exists("#rismain_raw tbody td.text4 a");
+  }, 2);
+
+  casper.thenClick("#rismain_raw tbody td.text4 a")
+  casper.wait(750);
+
+  casper.then(function() 
   {
-    beschluesse = this.evaluate(getDocs);
-  }).run(function() {
+    resolutions = this.evaluate(evaluateURL);
+  });
+
+  casper.run(function() {
     var out = "";
 
-    for (i = 0; i < beschluesse.length; i++)
+    for (i = 0; i < resolutions.length; i++)
     {
-      //dcheck = beschluesse[i].date.split('.');
-      //dcheck = new Date(Date.UTC(parseInt(dcheck[2]), parseInt(dcheck[1]), parseInt(dcheck[0])));
-
-      //console.log(dcheck);
-
-      out += beschluesse[i].date + ": " + beschluesse[i].link + "\n\n" + beschluesse[i].description + "\n\n---\n\n";
+      out += resolutions[i].date + ": " + resolutions[i].link + "\n\n" + resolutions[i].description + "\n\n---\n\n";
     }
 
     fs.write(ba_list[current - 1].slice(3) +".txt", out, 'w');
-    fs.write(ba_list[current - 1].slice(3) +".json", JSON.stringify(beschluesse), 'w');
+    fs.write(ba_list[current - 1].slice(3) +".json", JSON.stringify(resolutions), 'w');
   });
 }
 

@@ -71,7 +71,18 @@ function evaluateURL()
       xdate = date.split('.');
       xdate = new XDate(Date.UTC(parseInt(xdate[2]), parseInt(xdate[1]), parseInt(xdate[0])));
 
-      result.push({ "link": link[0].href, "description": link[0].innerText, "date": xdate.toDateString() });
+      description = link[0].innerText;
+      id = description.match(/Bebauungsplan ([\w-]+)/i);
+
+      if (id && id.length == 2)
+      {
+        result.push({ 
+          "id": id[1],
+          "link": link[0].href, 
+          "description": description, 
+          "date": xdate.toDateString(),
+        });
+      }
     }
   }
 
@@ -118,8 +129,8 @@ function get(url)
       out += resolutions[i].date + ": " + resolutions[i].link + "\n\n" + resolutions[i].description + "\n\n---\n\n";
     }
 
-    fs.write(ba_list[current - 1].slice(3) +".txt", out, 'w');
-    fs.write(ba_list[current - 1].slice(3) +".json", JSON.stringify(resolutions), 'w');
+    fs.write('data/text/' + ba_list[current - 1].slice(3) +".txt", out, 'w');
+    fs.write('data/json/' + ba_list[current - 1].slice(3) +".json", JSON.stringify(resolutions), 'w');
   });
 }
 

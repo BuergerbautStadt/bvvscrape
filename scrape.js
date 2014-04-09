@@ -4,6 +4,7 @@
 
 var XDate = require('xdate');
 var fs = require('fs');
+//var utils = require('utils');
 
 var casper = require('casper').create({
   pageSettings: 
@@ -36,6 +37,7 @@ var ba_list = [
 ];
 
 var current = 0;
+var getAll  = false;
 
 function makeReadable(ba)
 {
@@ -114,7 +116,7 @@ function get(url)
 
   casper.then(function() 
   {
-    resolutions = this.evaluate(evaluateURL);
+    resolutions = this.evaluate(evaluateURL, getAll);
   });
 
   casper.run(function() {
@@ -128,6 +130,12 @@ function get(url)
     fs.write('data/text/' + ba_list[current - 1].slice(3) +".txt", out, 'w');
     fs.write('data/json/' + ba_list[current - 1].slice(3) +".json", JSON.stringify(resolutions), 'w');
   });
+}
+
+
+if (casper.cli.has("getAll"))
+{
+  getAll = true;
 }
 
 get(buildURL(ba_list[current]));

@@ -4,7 +4,6 @@
 
 var XDate = require('xdate');
 var fs = require('fs');
-//var utils = require('utils');
 
 var casper = require('casper').create({
   pageSettings: 

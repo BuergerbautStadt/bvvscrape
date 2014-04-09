@@ -1,11 +1,9 @@
 /** 
  * this script requires casparjs >= 1.1 with phantomjs >= 1.8
- * 
- * TODOs: 
- *  - figure out how to get all entries via ?showall=true
  **/
 
 var XDate = require('xdate');
+var fs = require('fs');
 
 var casper = require('casper').create({
   pageSettings: 
@@ -21,8 +19,6 @@ var casper = require('casper').create({
     height: 768
   }
 });
-
-var fs = require('fs');
 
 var ba_list = [
   "ba-charlottenburg-wilmersdorf",
@@ -80,7 +76,7 @@ function evaluateURL()
           "id": id[1],
           "link": link[0].href, 
           "description": description, 
-          "date": xdate.toDateString(),
+          "date": xdate.toISOString(),
         });
       }
     }
@@ -138,7 +134,7 @@ get(buildURL(ba_list[current]));
 casper.on('run.complete', function () {
   if (++current < ba_list.length)
   {
-    get(buildURL(ba_list[current]));
+    //get(buildURL(ba_list[current]));
   } else
   {
     casper.exit();

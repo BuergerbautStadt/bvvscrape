@@ -47,6 +47,11 @@ function makeReadable(ba)
 
 function buildURL(ba)
 {
+  if (ba == "ba-steglitz-zehlendorf")
+  {
+    return "http://www.berlin.de/ba-steglitz-zehlendorf/politik-und-verwaltung/bezirksverordnetenversammlung/online/vo040.asp"
+  }
+
   return "http://www.berlin.de/" + ba + "/bvv-online/vo040.asp";
 }
 

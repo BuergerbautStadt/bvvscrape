@@ -50,7 +50,7 @@ function buildURL(ba)
   return "http://www.berlin.de/" + ba + "/bvv-online/vo040.asp";
 }
 
-function evaluateURL()
+function evaluateURL(getAll)
 {
   var rows = document.querySelectorAll('#rismain_raw tbody tr');
   var result = new Array();
@@ -68,10 +68,12 @@ function evaluateURL()
       xdate = date.split('.');
       xdate = new XDate(Date.UTC(parseInt(xdate[2]), parseInt(xdate[1]), parseInt(xdate[0])));
 
+      xdate.addMonths(-1); // xdate adds one month. 
+
       description = link[0].innerText;
       id = description.match(/Bebauungsplan ([\w-]+)/i);
 
-      if (id && id.length == 2)
+      if (id && id.length == 2 && (xdate.diffWeeks(XDate.now()) <= 1 || getAll))
       {
         result.push({ 
           "id": id[1],
@@ -127,7 +129,7 @@ function get(url)
     }
 
     fs.write('data/text/' + ba_list[current - 1].slice(3) +".txt", out, 'w');
-    fs.write('data/json/' + ba_list[current - 1].slice(3) +".json", JSON.stringify(resolutions), 'w');
+    fs.write('data/json/' + ba_list[current - 1].slice(3) +".json", JSON.stringify(resolutions, null, '\t'), 'w');
   });
 }
 
@@ -141,7 +143,7 @@ get(buildURL(ba_list[current]));
 casper.on('run.complete', function () {
   if (++current < ba_list.length)
   {
-    //get(buildURL(ba_list[current]));
+    get(buildURL(ba_list[current]));
   } else
   {
     casper.exit();

@@ -20,7 +20,11 @@ var data;
 
 casper.start("http://www.parlament-berlin.de/de/Dokumente/Drucksachen");
 
-casper.wait(1000);
+casper.waitFor(function () {
+  return this.evaluate(function() {
+    return $('#indicator').css('display') == 'none';
+  });
+});
 
 casper.thenEvaluate(function() {
   sel = document.querySelector('#Beschreibung');
@@ -30,7 +34,11 @@ casper.thenEvaluate(function() {
   applyFilter();
 });
 
-casper.wait(3000);
+casper.waitFor(function () {
+  return this.evaluate(function() {
+    return $('#indicator').css('display') == 'none';
+  });
+});
 
 casper.then(function() {
   data = this.evaluate(function () {

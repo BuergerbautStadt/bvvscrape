@@ -40,15 +40,18 @@ casper.then(function() {
     for (i = 0; i < rows.length; i++)
     {
       var description = rows[i].querySelector('td > strong').innerText;
+
+      var id = description.match(/Bebauungsplans? ([\w-]+)/i);
+
       var date  = rows[i].childNodes[4].textContent.match(/(e|ü):([0-9.]+) /i);
       
       var documents = new Array();
 
+      var link = rows[i].childNodes[0].textContent;
+
       $('#vorgaenge tbody tr:nth-child('+i+') a').each(function() { documents.push(this.href) });
 
-      
-
-      if (date)
+      if (id)
       {
         d = date[2].split('.');
         d = new Date(parseInt(d[2]), parseInt(d[1]), parseInt(d[0]));
@@ -58,7 +61,9 @@ casper.then(function() {
         result.push({
           "description": description,
           "documents": documents,
-          "date": xdate.toISOString()
+          "date": xdate.toISOString(),
+          "id": id[1],
+          "link": "http://www.parlament-berlin.de/de/Dokumente/Drucksachen?Vorgang="+link
         });
       }
     }

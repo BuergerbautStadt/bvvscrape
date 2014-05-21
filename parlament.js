@@ -13,74 +13,98 @@ var casper = require('casper').create({
   {
     width: 1024,
     height: 768
+  },
+  onStepComplete: function()
+  {
+    (currentStep < NUM_STEPS) ? currentStep++ : currentStep = 0;
+    casper.echo(currentStep);
   }
 });
 
 var data;
 
-casper.start("http://www.parlament-berlin.de/de/Dokumente/Drucksachen");
+/*
+- check for more pages selector
+  - if more pages: increase num_steps 
+- compare num_steps to currentstep
+  - switch to second page, reset step count if more pages
+*/
 
-casper.waitFor(function () {
-  return this.evaluate(function() {
-    return $('#indicator').css('display') == 'none';
+var config = {
+  num_steps: 6,
+  add_steps: 0, // this is the number of steps added to navigate to the next page
+  current_num_steps: 0,
+  current_step: 0
+};
+
+run();
+
+function run()
+{
+  casper.start("http://www.parlament-berlin.de/de/Dokumente/Drucksachen");
+
+  casper.waitFor(function () {
+    return this.evaluate(function() {
+      return $('#indicator').css('display') == 'none';
+    });
   });
-});
 
-casper.thenEvaluate(function() {
-  sel = document.querySelector('#Beschreibung');
-  sel.value = 'Bebauungsplan';
+  casper.thenEvaluate(function() {
+    sel = document.querySelector('#Beschreibung');
+    sel.value = 'Bebauungsplan';
 
-  // this website, it's crazy
-  applyFilter();
-});
-
-casper.waitFor(function () {
-  return this.evaluate(function() {
-    return $('#indicator').css('display') == 'none';
+    // this website, it's crazy
+    applyFilter();
   });
-});
 
-casper.then(function() {
-  data = this.evaluate(function () {
-    rows = document.querySelectorAll('#vorgaenge tbody tr');
-    var result = new Array();
+  casper.waitFor(function () {
+    return this.evaluate(function() {
+      return $('#indicator').css('display') == 'none';
+    });
+  });
 
-    for (i = 0; i < rows.length; i++)
-    {
-      var description = rows[i].querySelector('td > strong').innerText;
+  casper.then(function() {
+    data = this.evaluate(function () {
+      rows = document.querySelectorAll('#vorgaenge tbody tr');
+      var result = new Array();
 
-      var id = description.match(/Bebauungsplans? ([\w-]+)/i);
-
-      var date  = rows[i].childNodes[4].textContent.match(/(e|ü):([0-9.]+) /i);
-      
-      var documents = new Array();
-
-      var link = rows[i].childNodes[0].textContent;
-
-      $('#vorgaenge tbody tr:nth-child('+i+') a').each(function() { documents.push(this.href) });
-
-      if (id)
+      for (i = 0; i < rows.length; i++)
       {
-        d = date[2].split('.');
-        d = new Date(parseInt(d[2]), parseInt(d[1]), parseInt(d[0]));
+        var description = rows[i].querySelector('td > strong').innerText;
+
+        var id = description.match(/Bebauungsplans? ([\w-]+)/i);
+
+        var date  = rows[i].childNodes[4].textContent.match(/(e|ü):([0-9.]+) /i);
         
-        xdate = new XDate(d);
+        var documents = new Array();
 
-        result.push({
-          "description": description,
-          "documents": documents,
-          "date": xdate.toISOString(),
-          "id": id[1],
-          "link": "http://www.parlament-berlin.de/de/Dokumente/Drucksachen?Vorgang="+link
-        });
+        var link = rows[i].childNodes[0].textContent;
+
+        $('#vorgaenge tbody tr:nth-child('+i+') a').each(function() { documents.push(this.href) });
+
+        if (id)
+        {
+          d = date[2].split('.');
+          d = new Date(parseInt(d[2]), parseInt(d[1]), parseInt(d[0]));
+          
+          xdate = new XDate(d);
+
+          result.push({
+            "description": description,
+            "documents": documents,
+            "date": xdate.toISOString(),
+            "id": id[1],
+            "link": "http://www.parlament-berlin.de/de/Dokumente/Drucksachen?Vorgang="+link
+          });
+        }
       }
-    }
 
-    return result;
+      return result;
+    });
   });
-});
 
-casper.run(function() {
-  fs.write("data/json/parlament.json", JSON.stringify(data, null, '\t'), 'w');
-  casper.exit();
-});
+  casper.run(function() {
+    fs.write("data/json/parlament.json", JSON.stringify(data, null, '\t'), 'w');
+    casper.exit();
+  });
+}

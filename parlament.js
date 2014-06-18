@@ -13,11 +13,6 @@ var casper = require('casper').create({
   {
     width: 1024,
     height: 768
-  },
-  onStepComplete: function()
-  {
-    (currentStep < NUM_STEPS) ? currentStep++ : currentStep = 0;
-    casper.echo(currentStep);
   }
 });
 

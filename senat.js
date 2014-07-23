@@ -130,7 +130,12 @@ function get(url)
 
     for (i = 0; i < resolutions.length; i++)
     {
-      out += resolutions[i].date + ": " + resolutions[i].link + "\n\n" + resolutions[i].description + "\n\n---\n\n";
+      out += "Datum: " + resolutions[i].date
+          + "\nLink: " + resolutions[i].link
+          + "\nBezeichner: "+resolutions[i].id
+          + "\n\nBeschreibung:\n\n"
+          + resolutions[i].description 
+          + "\n\n---\n\n";
     }
 
     fs.write('data/text/' + ba_list[current - 1].slice(3) +".txt", out, 'w');
@@ -139,7 +144,7 @@ function get(url)
 }
 
 
-if (casper.cli.has("getAll"))
+if (casper.cli.has("all"))
 {
   getAll = true;
 }

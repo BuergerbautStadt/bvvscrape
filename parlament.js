@@ -100,6 +100,27 @@ function run()
 
   casper.run(function() {
     fs.write("data/json/parlament.json", JSON.stringify(data, null, '\t'), 'w');
+
+    var out = "";
+    for (i = 0; i < data.length; i++)
+    {
+      var docs = "";
+
+      for (var j = 0; j < data[i].documents.length; j++)
+      {
+        docs += "- " + data[i].documents[j] + "\n";
+      }
+
+      out += "Datum: " + data[i].date
+          +  "\nLink: " + data[i].link
+          +  "\nBezeichner: " + data[i].id
+          +  "\n\nBeschreibung:\n\n" + data[i].description
+          +  "\n\nDokumente:\n\n" + docs
+          +  "\n\n---\n\n";
+
+    }
+
+    fs.write("data/text/parlament.txt", out, 'w');
     casper.exit();
   });
 }

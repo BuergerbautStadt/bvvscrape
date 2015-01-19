@@ -1,0 +1,8 @@
+{
+  "name": "bvvscrape",
+  "description": "See bower.json",
+  "dependencies": {
+    "bower": "^1.3.12"
+  },
+  "homepage": "https://github.com/BuergerbautStadt/bvvscrape"
+}

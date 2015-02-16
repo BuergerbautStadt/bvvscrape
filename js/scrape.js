@@ -1,57 +1,47 @@
-try {
-    var Spooky = require('spooky');
-} catch (e) {
-    var Spooky = require('../lib/spooky');
-}
+var fs     = require("fs");
+var Spooky = require('spooky');
+
+var BVVScraper = require("./bvvscraper.js");
 
 var spooky = new Spooky({
-        child: {
-            transport: 'http'
+    child: {
+        transport: 'http'
+    },
+    casper: {
+        pageSettings: 
+        {
+            loadImages: true,
+            loadPlugins: false,
         },
-        casper: {
-            logLevel: 'debug',
-            verbose: true
+        clientScripts: ['bower_components/xdate/src/xdate.js', 'bower_components/xdate/src/extras.js'],
+        //verbose: true,
+        viewportSize: // circumvent being accidentally redirected to mobile sites based on screen real estate
+        {
+            width: 1280,
+            height: 960
         }
-    }, function (err) {
-        if (err) {
-            e = new Error('Failed to initialize SpookyJS');
-            e.details = err;
-            throw e;
-        }
-
-        spooky.start(
-            'http://en.wikipedia.org/wiki/Spooky_the_Tuff_Little_Ghost');
-        spooky.then(function () {
-            this.emit('hello', 'Hello, from ' + this.evaluate(function () {
-                return document.title;
-            }));
-        });
-        spooky.run();
-    });
-
-spooky.on('error', function (e, stack) {
-    console.error(e);
-
-    if (stack) {
-        console.log(stack);
     }
-});
+}, ghostbusters);
 
-/*
-// Uncomment this block to see all of the things Casper has to say.
-// There are a lot.
-// He has opinions.
-spooky.on('console', function (line) {
-    console.log(line);
-});
-*/
+spooky.on('error', function(err) { console.log(err); });
 
-spooky.on('hello', function (greeting) {
-    console.log(greeting);
-});
-
-spooky.on('log', function (log) {
-    if (log.space === 'remote') {
-        console.log(log.message.replace(/ \- .*/, ''));
+function ghostbusters(err) {
+     if (err) {
+        e = new Error('Failed to initialize SpookyJS');
+        e.details = err;
+        throw e;
     }
-});
+
+    var URLs = require('./urls.json');
+    
+    spooky.start("http://www.berlin.de");
+
+    var scpr = new BVVScraper();
+    for (var borough in URLs.BVVScraper)
+    {
+        var url = URLs.BVVScraper[borough];    
+        scpr.scrape(spooky, borough, url);
+    }
+
+    spooky.run();
+}

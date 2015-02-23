@@ -1,8 +1,13 @@
-var exports = module.exports = function() {}
+var exports = module.exports = BVVScraper;
 
-exports.prototype.constructor = function() {}
+var BVVScraper = function()
+{
 
-exports.prototype.scrape = function(spooky, borough, url)
+}
+
+BVVScraper.prototype.constructor = function() {}
+
+BVVScraper.prototype.scrape = function(spooky, borough, url)
 {
     spooky.thenOpen(url);
 

@@ -31,13 +31,11 @@ urls = {
 
 def initdb():
     c = db.cursor()
-    c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
 
-    if c.rowcount <= 0:
-      c.execute("CREATE TABLE proceedings ( id integer primary key autoincrement, bvv text not null, bvv_identifier text not null, first_found text not null );")
-      c.execute("CREATE TABLE finds (id integer primary key autoincrement, proceeding_id integer not null, url text  not null, data text not null, fetched_date numeric not null );")
+    c.execute("CREATE TABLE IF NOT EXISTS proceedings ( id integer primary key autoincrement, borough text not null, bvv_identifier text not null, first_found text not null );")
+    c.execute("CREATE TABLE IF NOT EXISTS finds (id integer primary key autoincrement, proceeding_id integer not null, url text  not null, data text not null, fetched_date numeric not null );")
 
-      db.commit()
+    db.commit()
 
     c.close()  
         
@@ -48,11 +46,11 @@ def scrape():
 def bvv(bvvurls):
     for borough in bvvurls["boroughs"]:
         url = bvvurls["pattern"].format(bvvurls["boroughs"][borough])
-        bvv_single(url)
+        bvv_single(borough, url)
 
-def bvv_single(url):
+def bvv_single(borough, url, request_range = "2010-2011"):
     payload = { 
-        "VO040FIL4": "2010-2011", 
+        "VO040FIL4": request_range, 
         "filtdatum": "filter", 
         "x": "0", 
         "y": "0" 
@@ -62,8 +60,6 @@ def bvv_single(url):
 
     soup = BeautifulSoup(r.text)
 
-    c = db.cursor()
-
     for row in soup.select("#rismain_raw tbody tr"):
         elements = list(row.find_all('td'))
         if len(elements) < 6:
@@ -71,19 +67,52 @@ def bvv_single(url):
 
         placeholder1, link, placeholder2, fraction, date, paper_type = elements
         # filter link for Bebauungsplan, B.-Plan, etc.
-        match = re.search(r"Bebauungsplan ([\w\d-]+)", unicode(link.string), re.IGNORECASE)
+        match = re.search(r"(Bebauungsplan|B\.-Plan) ([\w\d-]+)", unicode(link.string), re.IGNORECASE)
+
         if match is not None:
-            ident = match.group(1)
-            
+            ident = unicode(match.group(2))
+            data  = { 
+                "borough": borough, 
+                "bvv_identifier": ident, 
+                "description": link.string, 
+                "link": link.a.get('href'), 
+                "date": date.string or 'now'
+            }
 
-    db.commit()
-    c.close()
+            add_find(data)
+
     sleep(3)
+    exit(0)
+
+def add_find(data):
+    # check if it is in the proceedings
+    check_sql = "SELECT id FROM proceedings WHERE bvv_identifier = ?;"
+
+    c = db.cursor()
+    c.execute(check_sql, (data["bvv_identifier"],))
+    c.fetchall()
+
+    if c.rowcount < 1:
+        insert_proceeding_sql = "INSERT INTO proceedings VALUES(NULL, ?, ?, datetime('now'));"
+        c.execute(insert_proceeding_sql, (data["borough"], data["bvv_identifier"]))
+        db.commit()
+
+        insert_id = c.lastrowid
+
+        insert_find_sql = "INSERT INTO finds VALUES(NULL, ?, ?, ?, datetime(?));"
+        c.execute(insert_find_sql, (insert_id, data["link"], data["description"], data["date"]))
+        db.commit()
+
+    else:
+        pass
+      # check in finds for the link+date combo, insert if not exists
 
 
+################################################################################
 db = sqlite3.connect('data/db.sqlite')
 
 initdb()
-#scrape()
+scrape()
 
 db.close()
+################################################################################

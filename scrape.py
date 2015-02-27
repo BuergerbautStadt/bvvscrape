@@ -33,7 +33,7 @@ def initdb():
     c = db.cursor()
 
     c.execute("CREATE TABLE IF NOT EXISTS proceedings ( id integer primary key autoincrement, borough text not null, bvv_identifier text not null, first_found text not null );")
-    c.execute("CREATE TABLE IF NOT EXISTS finds (id integer primary key autoincrement, proceeding_id integer not null, url text  not null, data text not null, fetched_date numeric not null );")
+    c.execute("CREATE TABLE IF NOT EXISTS finds (id integer primary key autoincrement, proceeding_id integer not null, url text  not null, data text not null, fetched_date text not null );")
 
     db.commit()
 
@@ -75,14 +75,13 @@ def bvv_single(borough, url, request_range = "2010-2011"):
                 "borough": borough, 
                 "bvv_identifier": ident, 
                 "description": link.string, 
-                "link": link.a.get('href'), 
-                "date": date.string or 'now'
+                "link": "https://www.berlin.de{}".format(link.a.get('href')), 
+                "date": date.string
             }
 
             add_find(data)
 
     sleep(3)
-    exit(0)
 
 def add_find(data):
     # check if it is in the proceedings
@@ -93,13 +92,16 @@ def add_find(data):
     c.fetchall()
 
     if c.rowcount < 1:
-        insert_proceeding_sql = "INSERT INTO proceedings VALUES(NULL, ?, ?, datetime('now'));"
-        c.execute(insert_proceeding_sql, (data["borough"], data["bvv_identifier"]))
+        insert_proceeding_sql = "INSERT INTO proceedings VALUES(NULL, ?, ?, ?);"
+        c.execute(insert_proceeding_sql, (data["borough"], data["bvv_identifier"], data["date"]))
         db.commit()
 
         insert_id = c.lastrowid
 
-        insert_find_sql = "INSERT INTO finds VALUES(NULL, ?, ?, ?, datetime(?));"
+        if data["date"] == None:
+          data["date"] = 'now'
+
+        insert_find_sql = "INSERT INTO finds VALUES(NULL, ?, ?, ?, ?);"
         c.execute(insert_find_sql, (insert_id, data["link"], data["description"], data["date"]))
         db.commit()
 

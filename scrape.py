@@ -34,6 +34,7 @@ def initdb():
 
     c.execute("CREATE TABLE IF NOT EXISTS proceedings ( id integer primary key autoincrement, borough text not null, bvv_identifier text not null, first_found text not null );")
     c.execute("CREATE TABLE IF NOT EXISTS finds (id integer primary key autoincrement, proceeding_id integer not null, url text  not null, data text not null, fetched_date text not null );")
+    c.execute("CREATE TABLE IF NOT EXISTS files (id integer primary key autoincrement, find_id integer not null, url text not null );")
 
     db.commit()
 
@@ -49,6 +50,9 @@ def bvv(bvvurls):
         bvv_single(borough, url)
 
 def bvv_single(borough, url, request_range = "2010-2011"):
+    print(u"Scraping BVV {}".format(borough))
+    sleep(1)
+
     payload = { 
         "VO040FIL4": request_range, 
         "filtdatum": "filter", 
@@ -79,39 +83,74 @@ def bvv_single(borough, url, request_range = "2010-2011"):
                 "date": date.string
             }
 
+            data["files"] = bvv_get_files(data["link"])
+
             add_find(data)
 
-    sleep(3)
+    
+
+def bvv_get_files(url):
+    sleep(1)
+    r = requests.get(url)
+
+    soup = BeautifulSoup(r.text)
+
+    files = list()
+
+    for document in soup.select('#rismain_raw .tk1 .me1 td[align=center] form'):
+        # create prepared requests for each document
+        params = dict()
+
+        for ipt in document.input:
+            if ipt.get('name') == "DOLFDNR":
+                params["DOLFDNR"] = ipt.get('value')
+
+            if ipt.get('name') == "options":
+                params["options"] = ipt.get('value')
+
+        prep = requests.Request(
+            'POST', 
+            "https://www.berlin.de{}".format(document.get("action")), 
+            params
+        ).prepare()
+
+        files.append({ "name": document.select('input[type=submit]')[0].get('value'), "request": prep })
+
+    return files
 
 def add_find(data):
+    if data["date"] is not None:
+        data["date"] = 'now'
+
     # check if it is in the proceedings
-    check_sql = "SELECT id FROM proceedings WHERE bvv_identifier = ?;"
+    check_proceeding_sql = "SELECT id FROM proceedings WHERE bvv_identifier = ?;"
 
     c = db.cursor()
-    c.execute(check_sql, (data["bvv_identifier"],))
+    c.execute(check_proceeding_sql, (data["bvv_identifier"],))
     c.fetchall()
 
+    insert_id = None
     if c.rowcount < 1:
         insert_proceeding_sql = "INSERT INTO proceedings VALUES(NULL, ?, ?, ?);"
         c.execute(insert_proceeding_sql, (data["borough"], data["bvv_identifier"], data["date"]))
         db.commit()
 
         insert_id = c.lastrowid
+    
+    check_find_sql = "SELECT FROM finds WHERE url = ? AND fetched_date = ?"
+    c.execute(check_find_sql, (data["link"], data["date"]))
+    c.fetchall()
 
-        if data["date"] == None:
-          data["date"] = 'now'
-
+    if c.rowcount < 1 and insert_id is not None:
         insert_find_sql = "INSERT INTO finds VALUES(NULL, ?, ?, ?, ?);"
         c.execute(insert_find_sql, (insert_id, data["link"], data["description"], data["date"]))
         db.commit()
 
-    else:
-        pass
-      # check in finds for the link+date combo, insert if not exists
+    # TODO: store files
 
 
 ################################################################################
-db = sqlite3.connect('data/db.sqlite')
+db = sqlite3.connect('db.sqlite')
 
 initdb()
 scrape()

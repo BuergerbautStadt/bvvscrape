@@ -7,6 +7,9 @@ import re
 from time import sleep
 
 import sqlite3
+import pickle
+
+import sys
 
 urls = {
     "bvv": {
@@ -27,6 +30,9 @@ urls = {
             u"Treptow-Köpenick": "ba-treptow-koepenick/politik-und-verwaltung/bezirksverordnetenversammlung/online/"
         }
     }
+    "umweltbeteiligung": {
+      "library": "https://umwelt-beteiligung.de/berlin/bibliothek"
+    }
 }
 
 def initdb():
@@ -42,12 +48,23 @@ def initdb():
         
 
 def scrape():
-    bvv(urls["bvv"])
+    bvv()
+    umweltbeteiligung()
+
 
 def bvv(bvvurls):
-    for borough in bvvurls["boroughs"]:
-        url = bvvurls["pattern"].format(bvvurls["boroughs"][borough])
-        bvv_single(borough, url)
+    request_year = 2015
+    if len(sys.argv) >= 2 and sys.argv[1].isdigit():
+        request_year = int(sys.argv[1])
+
+    request_range = bvv_request_year(request_year)
+
+    for borough in urls["bvv"]["boroughs"]:
+        url = urls["bvv"]["pattern"].format(urls["bvv"]["boroughs"][borough])
+        bvv_single(borough, url, request_range)
+
+def bvv_request_year(numeric_year):
+    return "{}-{}".format(numeric_year-1, numeric_year)
 
 def bvv_single(borough, url, request_range = "2010-2011"):
     print(u"Scraping BVV {}".format(borough))
@@ -75,6 +92,7 @@ def bvv_single(borough, url, request_range = "2010-2011"):
 
         if match is not None:
             ident = unicode(match.group(2))
+            print("\t{}".format(ident))
             data  = { 
                 "borough": borough, 
                 "bvv_identifier": ident, 
@@ -108,18 +126,26 @@ def bvv_get_files(url):
             if ipt.get('name') == "options":
                 params["options"] = ipt.get('value')
 
+        # http://docs.python-requests.org/en/latest/user/advanced/#prepared-requests
         prep = requests.Request(
             'POST', 
             "https://www.berlin.de{}".format(document.get("action")), 
             params
         ).prepare()
 
-        files.append({ "name": document.select('input[type=submit]')[0].get('value'), "request": prep })
+        print("\t\t- {}".format(params["DOLFDNR"]))
+
+        files.append({ "name": document.select('input[type=submit]')[0].get('value'), "request": pickle.dumps(prep) })
 
     return files
 
+def umweltbeteiligung():
+    sleep(1)
+
+    url = urls["umweltbeteiligung"]["library"]
+
 def add_find(data):
-    if data["date"] is not None:
+    if data["date"] is None:
         data["date"] = 'now'
 
     # check if it is in the proceedings

@@ -29,7 +29,7 @@ urls = {
             u"Tempelhof-Schöneberg": "ba-tempelhof-schoeneberg/bvv-online/",
             u"Treptow-Köpenick": "ba-treptow-koepenick/politik-und-verwaltung/bezirksverordnetenversammlung/online/"
         }
-    }
+    },
     "umweltbeteiligung": {
       "library": "https://umwelt-beteiligung.de/berlin/bibliothek"
     }
@@ -40,7 +40,7 @@ def initdb():
 
     c.execute("CREATE TABLE IF NOT EXISTS proceedings ( id integer primary key autoincrement, borough text not null, bvv_identifier text not null, first_found text not null );")
     c.execute("CREATE TABLE IF NOT EXISTS finds (id integer primary key autoincrement, proceeding_id integer not null, url text  not null, data text not null, fetched_date text not null );")
-    c.execute("CREATE TABLE IF NOT EXISTS files (id integer primary key autoincrement, find_id integer not null, url text not null );")
+    c.execute("CREATE TABLE IF NOT EXISTS files (id integer primary key autoincrement, find_id integer not null, filename text not null, request text not null );")
 
     db.commit()
 
@@ -48,15 +48,16 @@ def initdb():
         
 
 def scrape():
-    bvv()
-    umweltbeteiligung()
-
-
-def bvv(bvvurls):
     request_year = 2015
     if len(sys.argv) >= 2 and sys.argv[1].isdigit():
         request_year = int(sys.argv[1])
 
+    bvv(request_year)
+    agh()
+    umweltbeteiligung()
+
+
+def bvv(request_year):
     request_range = bvv_request_year(request_year)
 
     for borough in urls["bvv"]["boroughs"]:
@@ -88,11 +89,11 @@ def bvv_single(borough, url, request_range = "2010-2011"):
 
         placeholder1, link, placeholder2, fraction, date, paper_type = elements
         # filter link for Bebauungsplan, B.-Plan, etc.
-        match = re.search(r"(Bebauungsplan|B\.-Plan) ([\w\d-]+)", unicode(link.string), re.IGNORECASE)
+        match = re.search(r"(Bebauungsplan|B\.-Plan) ([\w\d]+-[\w\d]+)", unicode(link.string), re.IGNORECASE)
 
         if match is not None:
             ident = unicode(match.group(2))
-            print("\t{}".format(ident))
+            print("  {}".format(ident))
             data  = { 
                 "borough": borough, 
                 "bvv_identifier": ident, 
@@ -103,9 +104,7 @@ def bvv_single(borough, url, request_range = "2010-2011"):
 
             data["files"] = bvv_get_files(data["link"])
 
-            add_find(data)
-
-    
+            add_find(data)  
 
 def bvv_get_files(url):
     sleep(1)
@@ -119,12 +118,15 @@ def bvv_get_files(url):
         # create prepared requests for each document
         params = dict()
 
-        for ipt in document.input:
-            if ipt.get('name') == "DOLFDNR":
-                params["DOLFDNR"] = ipt.get('value')
+        for ipt in document.select('input[type=hidden]'):
+            if ipt['name'] == "DOLFDNR":
+                params["DOLFDNR"] = ipt['value']
 
-            if ipt.get('name') == "options":
-                params["options"] = ipt.get('value')
+            if ipt['name'] == "VOLFDNR":
+                params["VOLFDNR"] = ipt['value']
+
+            if ipt['name'] == "options":
+                params["options"] = ipt['value']
 
         # http://docs.python-requests.org/en/latest/user/advanced/#prepared-requests
         prep = requests.Request(
@@ -133,11 +135,17 @@ def bvv_get_files(url):
             params
         ).prepare()
 
-        print("\t\t- {}".format(params["DOLFDNR"]))
+        if "DOLFDNR" in params: 
+            print("    - {}".format(params["DOLFDNR"]))
+        else:
+            print("    - {}".format(params["VOLFDNR"]))
 
         files.append({ "name": document.select('input[type=submit]')[0].get('value'), "request": pickle.dumps(prep) })
 
     return files
+
+def agh():
+    pass
 
 def umweltbeteiligung():
     sleep(1)
@@ -153,27 +161,38 @@ def add_find(data):
 
     c = db.cursor()
     c.execute(check_proceeding_sql, (data["bvv_identifier"],))
-    c.fetchall()
+    proceedings = c.fetchall()
 
-    insert_id = None
+    proceeding_id = None
     if c.rowcount < 1:
         insert_proceeding_sql = "INSERT INTO proceedings VALUES(NULL, ?, ?, ?);"
         c.execute(insert_proceeding_sql, (data["borough"], data["bvv_identifier"], data["date"]))
         db.commit()
 
-        insert_id = c.lastrowid
+        proceeding_id = c.lastrowid
+    else:
+        proceeding_id = proceedings[0]["id"]
     
-    check_find_sql = "SELECT FROM finds WHERE url = ? AND fetched_date = ?"
+    check_find_sql = "SELECT * FROM finds WHERE url = ? AND fetched_date = ?;"
     c.execute(check_find_sql, (data["link"], data["date"]))
-    c.fetchall()
+    finds = c.fetchall()
 
-    if c.rowcount < 1 and insert_id is not None:
+    current_find_id = None
+    if c.rowcount < 1 and proceeding_id is not None:
         insert_find_sql = "INSERT INTO finds VALUES(NULL, ?, ?, ?, ?);"
-        c.execute(insert_find_sql, (insert_id, data["link"], data["description"], data["date"]))
+        c.execute(insert_find_sql, (proceeding_id, data["link"], data["description"], data["date"]))
         db.commit()
 
-    # TODO: store files
+        current_find_id = c.lastrowid
 
+    check_file_sql = "SELECT * FROM files WHERE find_id = ?;"
+    c.execute(check_file_sql, (current_find_id,))
+
+    if c.rowcount < 1 and current_find_id is not None:
+        for file_info in data["files"]:
+            insert_file_sql = "INSERT INTO files VALUES(NULL, ?, ?, ?);"
+            c.execute(insert_file_sql, (current_find_id, file_info["name"], file_info["request"]))
+            db.commit()
 
 ################################################################################
 db = sqlite3.connect('db.sqlite')

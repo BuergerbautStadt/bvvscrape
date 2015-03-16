@@ -29,6 +29,12 @@ def fetch_fields(url):
 
     result["title"] = soup.find("h2", {"class":"node-title"}).text.encode("utf-8").strip()
     
+    if soup.find("span", {"class":"date-display-start"}):
+        result["date-display-start"] = soup.find("span", {"class":"date-display-start"})["content"]
+    
+    if soup.find("span", {"class":"date-display-end"}):
+        result["date-display-end"] = soup.find("span", {"class":"date-display-end"})["content"]
+
     fields = soup.findAll("div", {"class" : "field"})
     for field in fields:
         key = field.findNext("div", {"class": "field-label"})

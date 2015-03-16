@@ -27,6 +27,7 @@ def fetch_fields(url):
     soup = BeautifulSoup(html)
     result = {}
 
+    result["url"] = url
     result["title"] = soup.find("h2", {"class":"node-title"}).text.encode("utf-8").strip()
     
     if soup.find("span", {"class":"date-display-start"}):

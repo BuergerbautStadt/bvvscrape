@@ -63,7 +63,7 @@ def geturls(url):
     urls = []
     page = 0
     while True:
-        currentPage = fetch_links(url + "%&page=" + str(page))
+        currentPage = fetch_links(url + "&page=" + str(page))
         if len(currentPage) == 0:
             break
         urls.extend(currentPage)

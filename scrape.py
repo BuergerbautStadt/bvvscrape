@@ -89,7 +89,7 @@ def bvv_single(borough, url, request_range = "2010-2011"):
 
         placeholder1, link, placeholder2, fraction, date, paper_type = elements
         # filter link for Bebauungsplan, B.-Plan, etc.
-        match = re.search(r"(Bebauungsplan|B\.-Plan) ([\w\d]+-[\w\d]+)", unicode(link.string), re.IGNORECASE)
+        match = re.search(r"(Bebauungsplan|B(\.)?-Plan) ([\w\d]+-[\w\d]+)", unicode(link.string), re.IGNORECASE)
 
         if match is not None:
             ident = unicode(match.group(2))
